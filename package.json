@@ -1,0 +1,27 @@
+{
+  "name": "123d-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "files": [
+    "index.js",
+    "caseConfig.js",
+    "caseStore.js",
+    "commands",
+    "economy"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "discord.js": "^14.26.3",
+    "dotenv": "^17.4.2"
+  }
+}
