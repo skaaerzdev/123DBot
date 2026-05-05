@@ -56,16 +56,34 @@ function canManageRole(botMember, role) {
 }
 
 // ROLL EMBED - builds the reward result embed.
+function formatIcon(icon) {
+    if (!icon) return '';
+    if (/^https?:\/\//i.test(icon)) return `[image](${icon})`;
+
+    return icon;
+}
+
+function formatRewardText(item, rewardText) {
+    const icon = formatIcon(item.icon);
+
+    return icon ? `${icon} ${rewardText}` : rewardText;
+}
+
 function createRollEmbed(caseInfo, item, rewardText) {
-    return new EmbedBuilder()
-        .setTitle(`${caseInfo.displayName} Roll`)
-        .setColor(item.type === 'role' ? 0xc2aa50 : 0x00AE86)
+    const embed = new EmbedBuilder()
+        .setTitle(`🔑 ${caseInfo.displayName} Case Roll`)
+        .setColor(caseInfo.embedColor || '#c2aa50')
         .addFields(
-            { name: 'Reward', value: rewardText, inline: false },
-            { name: 'Rarity', value: item.rarity, inline: true },
+            { name: 'Reward', value: formatRewardText(item, rewardText), inline: false },
             { name: 'Chance', value: `${item.chance}%`, inline: true },
         )
         .setTimestamp();
+
+    if (caseInfo.imageUrl) {
+        embed.setImage(caseInfo.imageUrl);
+    }
+
+    return embed;
 }
 
 // SEND RESULT - replies to slash commands or prefix messages with the embed.

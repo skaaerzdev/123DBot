@@ -3,8 +3,18 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getCase, getCaseChoices } = require('../caseConfig');
 
 // ITEM FORMATTER - turns one reward into display text for the embed.
-function formatItem(item) {
-    return `**${item.name}** - ${item.rarity} - ${item.chance}%`;
+function formatIcon(icon) {
+    if (!icon) return '';
+    if (/^https?:\/\//i.test(icon)) return `[image](${icon})`;
+
+    return icon;
+}
+
+function formatItem(item, index) {
+    const icon = formatIcon(item.icon);
+    const itemName = icon ? `${icon} ${item.name}` : item.name;
+
+    return `${index + 1}. ${item.chance}% : ${itemName}`;
 }
 
 // VIEW COMMAND - shows the rewards inside one case.
@@ -42,9 +52,12 @@ module.exports = {
         // RESPONSE EMBED - lists every item inside the selected case.
         const embed = new EmbedBuilder()
             .setTitle(caseInfo.displayName)
-            .setColor(0xc2aa50)
-            .setDescription(caseInfo.items.map(formatItem).join('\n'))
-            .setFooter({ text: 'Gradient roles total 10%. Coin rewards total 90%.' });
+            .setColor(caseInfo.embedColor || '#c2aa50')
+            .setDescription(caseInfo.items.map(formatItem).join('\n'));
+
+        if (caseInfo.imageUrl) {
+            embed.setImage(caseInfo.imageUrl);
+        }
 
         return isInteraction
             ? interactionOrMessage.reply({ embeds: [embed] })

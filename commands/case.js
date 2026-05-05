@@ -30,8 +30,12 @@ module.exports = {
         if (caseInfo?.name === 'case1') {
             const embed = new EmbedBuilder()
                 .setTitle(caseInfo.displayName)
-                .setColor(0xc2aa50)
+                .setColor(caseInfo.embedColor || '#c2aa50')
                 .setDescription('testing case1');
+
+            if (caseInfo.imageUrl) {
+                embed.setImage(caseInfo.imageUrl);
+            }
 
             return isInteraction
                 ? interactionOrMessage.reply({ embeds: [embed] })

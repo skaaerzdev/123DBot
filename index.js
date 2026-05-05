@@ -10,6 +10,7 @@ const ROOT_DIR = __dirname;
 const COMMANDS_DIR = process.env.COMMANDS_DIR
     ? path.resolve(process.env.COMMANDS_DIR)
     : path.join(ROOT_DIR, 'commands');
+const MODERATION_DIR = path.join(ROOT_DIR, 'moderation');
 
 // REQUIRED ENV - stops the bot if an important .env value is missing.
 function requireEnv(name) {
@@ -49,6 +50,16 @@ function getCommandFiles() {
     }
 
     return commandFiles;
+}
+
+// MODERATION COMMAND FILES - gets command files from moderation folder if it exists
+function getModerationFiles() {
+    if (!fs.existsSync(MODERATION_DIR)) {
+        return [];
+    }
+
+    return fs.readdirSync(MODERATION_DIR)
+        .filter(file => file.endsWith('.js'));
 }
 
 // COMMAND IMPORT - loads one command module by file name.
@@ -131,6 +142,7 @@ client.commands = new Collection();
 
 // COMMAND FILES - finds every JavaScript command file in the commands folder.
 const commandsFiles = getCommandFiles();
+const moderationFiles = getModerationFiles();
 
 // COMMAND LOADER - requires each command file and adds it to the command cache.
 for (const file of commandsFiles) {
@@ -144,6 +156,21 @@ for (const file of commandsFiles) {
         console.log(`Loaded command: ${commandData.name}`);
     } else {
         console.log(`The command ${filePath} is missing a required "data" or "execute" property`)
+    }
+}
+
+// MODERATION COMMAND LOADER - requires each moderation command file
+for (const file of moderationFiles) {
+    const filePath = path.join(MODERATION_DIR, file);
+    const command = require(filePath);
+
+    if ('data' in command && 'execute' in command) {
+        const commandData = command.data.toJSON();
+        // COMMAND REGISTER - saves the command so slash and prefix handlers can run it.
+        client.commands.set(commandData.name, command)
+        console.log(`Loaded moderation command: ${commandData.name}`);
+    } else {
+        console.log(`The moderation command ${filePath} is missing a required "data" or "execute" property`)
     }
 }
 
@@ -204,11 +231,79 @@ client.once(Events.ClientReady, async () => {
     console.log(`Bot Status set to: ${statusType}`);
     console.log(`Activity set to: ${activityType} ${activityName}`)
     console.log(`Listening for prefix commands: ${PREFIXES.join(', ')}`);
+    console.log(describeRestriction('User command access', ALLOWED_USER_IDS));
+    console.log(describeRestriction('Role command access', ALLOWED_ROLE_IDS));
+    console.log(describeRestriction('Command channels', ALLOWED_CHANNEL_IDS));
 
 });
 
 // PREFIX CONFIG - controls which prefix starts text commands.
 const PREFIXES = ['!'];
+
+// CSV ID CONFIG - turns comma-separated Discord IDs from .env into a clean set.
+function parseIdSet(value) {
+    return new Set(
+        (value || '')
+            .split(',')
+            .map(id => id.trim())
+            .filter(Boolean)
+    );
+}
+
+// TEMP COMMAND ACCESS - comma-separated Discord user, role, and channel IDs.
+// Leave these empty to let everyone use commands in every channel again.
+const ALLOWED_USER_IDS = parseIdSet(process.env.ALLOWED_USER_IDS);
+const ALLOWED_ROLE_IDS = parseIdSet(process.env.ALLOWED_ROLE_IDS);
+const ALLOWED_CHANNEL_IDS = parseIdSet(process.env.ALLOWED_CHANNEL_IDS);
+
+// ROLE ACCESS CHECK - lets configured users through, or members with a configured role.
+function canUseCommand(memberOrUser) {
+    const userId = memberOrUser.user?.id || memberOrUser.id;
+    const roles = memberOrUser.roles;
+
+    if (ALLOWED_USER_IDS.size === 0 && ALLOWED_ROLE_IDS.size === 0) {
+        return true;
+    }
+
+    if (ALLOWED_USER_IDS.has(userId)) {
+        return true;
+    }
+
+    if (roles?.cache?.some(role => ALLOWED_ROLE_IDS.has(role.id))) {
+        return true;
+    }
+
+    return Array.isArray(roles) && roles.some(roleId => ALLOWED_ROLE_IDS.has(roleId));
+}
+
+// CHANNEL ACCESS CHECK - limits commands to configured channels when ALLOWED_CHANNEL_IDS is set.
+function canUseChannel(channelId) {
+    return ALLOWED_CHANNEL_IDS.size === 0 || ALLOWED_CHANNEL_IDS.has(channelId);
+}
+
+// ENV DISPLAY - keeps startup logs readable for temporary restrictions.
+function describeRestriction(name, values) {
+    return values.size > 0
+        ? `${name} restricted to ${values.size} ID(s).`
+        : `${name} is open.`;
+}
+
+// ACCESS DENIED MESSAGES - shared by slash and prefix commands.
+const ACCESS_DENIED_MESSAGE = 'You are not allowed to use bot commands right now.';
+const CHANNEL_DENIED_MESSAGE = 'Bot commands are not enabled in this channel right now.';
+
+// ACCESS VALIDATION - checks both temporary role/user access and channel access.
+function getAccessDeniedMessage(memberOrUser, channelId) {
+    if (!canUseChannel(channelId)) {
+        return CHANNEL_DENIED_MESSAGE;
+    }
+
+    if (!canUseCommand(memberOrUser)) {
+        return ACCESS_DENIED_MESSAGE;
+    }
+
+    return null;
+}
 
 // SLASH HANDLER - runs slash commands from Discord interactions.
 client.on(Events.InteractionCreate, async interaction => {
@@ -219,6 +314,13 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (!command) {
         return;
+    }
+
+    // TEMP ACCESS CHECK - blocks slash commands outside configured users, roles, or channels.
+    const accessDeniedMessage = getAccessDeniedMessage(interaction.member || interaction.user, interaction.channelId);
+
+    if (accessDeniedMessage) {
+        return interaction.reply({ content: accessDeniedMessage, ephemeral: true });
     }
 
     // COMMAND EXECUTION - runs the slash command and catches errors.
@@ -251,6 +353,13 @@ client.on(Events.MessageCreate, async message => {
     if (!command) {
         console.log(`Unknown prefix command: ${commandName}`);
         return;
+    }
+
+    // TEMP ACCESS CHECK - blocks prefix commands outside configured users, roles, or channels.
+    const accessDeniedMessage = getAccessDeniedMessage(message.member || message.author, message.channelId);
+
+    if (accessDeniedMessage) {
+        return message.reply({ content: accessDeniedMessage });
     }
 
     // COMMAND EXECUTION - runs the prefix command and replies if it fails.
