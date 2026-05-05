@@ -10,11 +10,11 @@ function formatIcon(icon) {
     return icon;
 }
 
-function formatItem(item, index) {
+function formatItem(item) {
     const icon = formatIcon(item.icon);
     const itemName = icon ? `${icon} ${item.name}` : item.name;
 
-    return `${index + 1}. ${item.chance}% : ${itemName}`;
+    return `- ${item.chance}% : ${itemName}`;
 }
 
 // VIEW COMMAND - shows the rewards inside one case.
