@@ -71,23 +71,10 @@ function loadCommandFile(file) {
 const { REST, Routes } = require('discord.js');
 
 // DEPLOY COMMANDS - sends all slash command definitions to Discord.
-const deployCommands = async () => {
+const deployCommands = async commandCollection => {
     try {
-        // COMMAND LIST - collects command definitions from the commands folder.
-        const commands = [];
-
-        const commandFiles = getCommandFiles();
-
-        for (const file of commandFiles) {
-            const command = loadCommandFile(file);
-            if ('data' in command && 'execute' in command) {
-                const commandData = command.data.toJSON();
-                commands.push(commandData);
-                console.log(`Prepared slash command: /${commandData.name}`);
-            } else {
-                console.log(`WARNING: Command at ${file} is missing a required 'data' or 'execute' property`)
-            }
-        }
+        // COMMAND LIST - reuses already-loaded commands so startup only imports each file once.
+        const commands = Array.from(commandCollection.values()).map(command => command.data.toJSON());
 
         // REST CLIENT - authenticates command deployment with the bot token.
         const rest = new REST().setToken(process.env.BOT_TOKEN);
@@ -107,8 +94,7 @@ const deployCommands = async () => {
     } catch (error) {
         console.error(`Error deploying command`, error);
     }
-
-}
+};
 
 // DISCORD CLIENT IMPORTS - loads the client, intents, events, and helper classes.
 const {
@@ -152,10 +138,10 @@ for (const file of commandsFiles) {
     if ('data' in command && 'execute' in command) {
         const commandData = command.data.toJSON();
         // COMMAND REGISTER - saves the command so slash and prefix handlers can run it.
-        client.commands.set(commandData.name, command)
+        client.commands.set(commandData.name, command);
         console.log(`Loaded command: ${commandData.name}`);
     } else {
-        console.log(`The command ${filePath} is missing a required "data" or "execute" property`)
+        console.log(`The command ${filePath} is missing a required "data" or "execute" property`);
     }
 }
 
@@ -167,10 +153,10 @@ for (const file of moderationFiles) {
     if ('data' in command && 'execute' in command) {
         const commandData = command.data.toJSON();
         // COMMAND REGISTER - saves the command so slash and prefix handlers can run it.
-        client.commands.set(commandData.name, command)
+        client.commands.set(commandData.name, command);
         console.log(`Loaded moderation command: ${commandData.name}`);
     } else {
-        console.log(`The moderation command ${filePath} is missing a required "data" or "execute" property`)
+        console.log(`The moderation command ${filePath} is missing a required "data" or "execute" property`);
     }
 }
 
@@ -191,10 +177,10 @@ process.on('uncaughtException', error => {
 
 // READY EVENT - runs once after Discord confirms the bot is online.
 client.once(Events.ClientReady, async () => {
-    console.log(`Ready! Logged in as ${client.user.tag}`)
+    console.log(`Ready! Logged in as ${client.user.tag}`);
 
     // SLASH DEPLOY - refreshes slash commands when the bot starts.
-    await deployCommands();
+    await deployCommands(client.commands);
     console.log('Commands deployed!');
 
     // PRESENCE CONFIG - reads status and activity text from .env.
@@ -221,15 +207,15 @@ client.once(Events.ClientReady, async () => {
 
     // PRESENCE UPDATE - sets the bot's online status and activity.
     client.user.setPresence({
-        status: statusMap[statusType],
+        status: statusMap[statusType] || PresenceUpdateStatus.Online,
         activities: [{
             name: activityName,
-            type: activityTypeMap[activityType]
+            type: activityTypeMap[activityType] || ActivityType.Playing
         }]
     });
 
     console.log(`Bot Status set to: ${statusType}`);
-    console.log(`Activity set to: ${activityType} ${activityName}`)
+    console.log(`Activity set to: ${activityType} ${activityName}`);
     console.log(`Listening for prefix commands: ${PREFIXES.join(', ')}`);
     console.log(describeRestriction('User command access', ALLOWED_USER_IDS));
     console.log(describeRestriction('Role command access', ALLOWED_ROLE_IDS));
@@ -328,10 +314,14 @@ client.on(Events.InteractionCreate, async interaction => {
         await command.execute(interaction);
     } catch (error) {
         console.error(error);
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'There was an error whilst executing this command!', ephemeral: true})
-        } else {
-            await interaction.reply({content: 'There was an error while executing this command', ephemeral: true})
+        try {
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: 'There was an error while executing this command.', ephemeral: true });
+            } else {
+                await interaction.reply({ content: 'There was an error while executing this command.', ephemeral: true });
+            }
+        } catch (replyError) {
+            console.error('Failed to send error message for slash command:', replyError);
         }
     }
 });

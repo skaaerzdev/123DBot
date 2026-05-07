@@ -8,10 +8,7 @@ module.exports = {
         .setName('ping')
         .setDescription('Replies with Pong and latency(ms)'),
     // COMMAND RUNNER - handles both slash command and !ping prefix usage.
-    async execute(interactionOrMessage, args) {
-        const isInteraction = typeof interactionOrMessage.isChatInputCommand === 'function'
-            && interactionOrMessage.isChatInputCommand();
-
+    async execute(interactionOrMessage) {
         // LATENCY - calculates how long the bot took to receive the command.
         const pingTime = Date.now() - interactionOrMessage.createdTimestamp;
         // RESPONSE EMBED - shows bot latency and Discord websocket latency.
@@ -26,4 +23,4 @@ module.exports = {
 
         await interactionOrMessage.reply({ embeds: [embed] });
     },
-}
+};

@@ -9,10 +9,7 @@ module.exports = {
         .setName('cases')
         .setDescription('Shows Event Cases'),
     // COMMAND RUNNER - handles both slash command and !cases prefix usage.
-    async execute(interactionOrMessage, args) {
-        const isInteraction = typeof interactionOrMessage.isChatInputCommand === 'function'
-            && interactionOrMessage.isChatInputCommand();
-
+    async execute(interactionOrMessage) {
         // CASE LIST - formats every configured case for display.
         const caseList = getCaseChoices()
             .map(choice => `\`${choice.value}\` - ${choice.name}`)
@@ -31,4 +28,4 @@ module.exports = {
 
         await interactionOrMessage.reply({ embeds: [embed] });
     },
-}
+};

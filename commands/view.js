@@ -13,8 +13,11 @@ function formatIcon(icon) {
 function formatItem(item) {
     const icon = formatIcon(item.icon);
     const itemName = icon ? `${icon} ${item.name}` : item.name;
+    const chance = Number.isInteger(item.chance)
+        ? item.chance
+        : item.chance.toFixed(2).replace(/\.?0+$/, '');
 
-    return `- ${item.chance}% : ${itemName}`;
+    return `- ${chance}% : ${itemName}`;
 }
 
 // VIEW COMMAND - shows the rewards inside one case.

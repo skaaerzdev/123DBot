@@ -17,13 +17,40 @@ function pickItem(items) {
     return items[items.length - 1];
 }
 
-// ROLE LOOKUP - finds a Discord role by ID first, then by name.
+function getTotalChance(items) {
+    return items.reduce((total, item) => total + item.chance, 0);
+}
+
+function formatChance(chance) {
+    return Number.isInteger(chance) ? `${chance}%` : `${chance.toFixed(2).replace(/\.?0+$/, '')}%`;
+}
+
+function getMentionedRoleId(value) {
+    const match = typeof value === 'string' ? value.match(/^<@&(\d+)>$/) : null;
+
+    return match ? match[1] : null;
+}
+
+// ROLE LOOKUP - finds a Discord role by ID first, then falls back to name.
 function resolveRole(guild, roleId, roleName) {
     if (roleId) {
-        return guild.roles.cache.get(roleId);
+        const role = guild.roles.cache.get(roleId);
+
+        if (role) return role;
     }
 
+    if (!roleName) return null;
+
     return guild.roles.cache.find(role => role.name.toLowerCase() === roleName.toLowerCase());
+}
+
+// ITEM ROLE LOOKUP - accepts roleId, legacy roleID, role mentions, or roleName.
+function resolveItemRole(guild, item) {
+    return resolveRole(
+        guild,
+        item.roleId || item.roleID || getMentionedRoleId(item.name),
+        item.roleName,
+    );
 }
 
 // ROLE PERMISSION CHECK - makes sure the bot can remove the required role.
@@ -69,15 +96,14 @@ function formatRewardText(item, rewardText) {
     return icon ? `${icon} ${rewardText}` : rewardText;
 }
 
-function createRollEmbed(caseInfo, item, rewardText) {
+function createRollEmbed(caseInfo, item, rewardText, chanceText = formatChance(item.chance)) {
     const embed = new EmbedBuilder()
         .setTitle(`🔑 ${caseInfo.displayName} Case Roll`)
         .setColor(caseInfo.embedColor || '#c2aa50')
         .addFields(
             { name: 'Reward', value: formatRewardText(item, rewardText), inline: false },
-            { name: 'Chance', value: `${item.chance}%`, inline: true },
+            { name: 'Chance', value: chanceText, inline: false },
         )
-        .setTimestamp();
 
     if (caseInfo.imageUrl) {
         embed.setImage(caseInfo.imageUrl);
@@ -119,7 +145,7 @@ module.exports = {
 
         // INVALID CASE - stops if the requested case does not exist.
         if (!caseInfo) {
-            const message = 'That case does not exist. Try `!roll case1`, `!roll case2`, or `!roll case3`.';
+            const message = 'That case does not exist. Try: \n `!roll case1`, `!roll case2`, `!roll case4`, `!roll case5`, `!roll case6`, `!roll case7`';
             return isInteraction
                 ? interactionOrMessage.reply({ content: message, ephemeral: true })
                 : interactionOrMessage.reply(message);
@@ -171,16 +197,19 @@ module.exports = {
 
         // REWARD ROLL - chooses the item the user wins.
         const item = pickItem(caseInfo.items);
+        const actualChance = item.chance / getTotalChance(caseInfo.items) * 100;
+        const chanceText = formatChance(actualChance);
 
         // COIN REWARD - shows the result without saving coins to the user's balance.
         if (item.type === 'coins') {
-            const embed = createRollEmbed(caseInfo, item, item.name);
+            const embed = createRollEmbed(caseInfo, item, item.name, chanceText);
+            embed.setFooter({ text: 'Make a ticket to claim the coins you have won.' });
 
             return sendResult(interactionOrMessage, isInteraction, embed);
         }
 
         // ROLE REWARD LOOKUP - finds the role prize the user won.
-        const role = resolveRole(interactionOrMessage.guild, item.roleId, item.roleName);
+        const role = resolveItemRole(interactionOrMessage.guild, item);
 
         // MISSING PRIZE ROLE - warns if the reward role is not configured correctly.
         if (!role) {
@@ -192,7 +221,7 @@ module.exports = {
 
         // ROLE REWARD - gives the prize role and sends the result embed.
         await member.roles.add(role);
-        const embed = createRollEmbed(caseInfo, item, role.toString());
+        const embed = createRollEmbed(caseInfo, item, role.toString(), chanceText);
 
         return sendResult(interactionOrMessage, isInteraction, embed);
     },

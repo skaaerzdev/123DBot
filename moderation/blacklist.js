@@ -26,7 +26,7 @@ module.exports = {
         const member = interactionOrMessage.member;
         
         if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
-            const errorMsg = '❌ Only staff members can use this command.';
+            const errorMsg = 'Only staff members can use this command.';
             if (isInteraction) {
                 return interactionOrMessage.reply({ content: errorMsg, ephemeral: true });
             } else {

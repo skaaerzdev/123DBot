@@ -8,7 +8,7 @@ module.exports = {
         .setName('info')
         .setDescription('Shows all commands'),
     // COMMAND RUNNER - handles both slash command and !info prefix usage.
-    async execute(interactionOrMessage, args) {
+    async execute(interactionOrMessage) {
         const isInteraction = typeof interactionOrMessage.isChatInputCommand === 'function'
             && interactionOrMessage.isChatInputCommand();
 
@@ -32,4 +32,4 @@ module.exports = {
             await interactionOrMessage.channel.send({ embeds: [embed] });
         }
     },
-}
+};
