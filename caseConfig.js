@@ -116,7 +116,7 @@ const cases = {
         displayName: 'Free Case',
         embedColor: '#c2aa50',
         imageUrl: '',
-        requiredRoleId: process.env.CASE6_REQUIRED_ROLE_ID,
+        requiredRoleId: process.env.CASE7_REQUIRED_ROLE_ID,
         requiredRoleName: process.env.CASE6_REQUIRED_ROLE_NAME || 'Case 6',
         // CASE ITEMS - keep chances adding to 100 if you want exact percentages.
         items: [
@@ -138,7 +138,7 @@ const cases = {
         displayName: 'Random Case',
         embedColor: '#c2aa50',
         imageUrl: '',
-        requiredRoleId: process.env.CASE7_REQUIRED_ROLE_ID,
+        requiredRoleId: process.env.CASE6_REQUIRED_ROLE_ID,
         requiredRoleName: process.env.CASE7_REQUIRED_ROLE_NAME || 'Case 7',
         // CASE ITEMS - every object here is one possible roll result.
         items: [
