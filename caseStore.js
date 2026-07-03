@@ -3,7 +3,15 @@ const fs = require('fs');
 const path = require('path');
 
 // DATA PATH - points to the file where case and coin data is saved.
-const dataPath = path.join(__dirname, 'economy', 'caseData.json');
+function resolveDataPath() {
+    const configuredPath = process.env.CASE_DATA_PATH || path.join('economy', 'caseData.json');
+
+    return path.isAbsolute(configuredPath)
+        ? configuredPath
+        : path.join(__dirname, configuredPath);
+}
+
+const dataPath = resolveDataPath();
 
 // DEFAULT DATA - creates the starting save-file structure.
 function createDefaultData() {
@@ -40,7 +48,17 @@ function readData() {
 // WRITE DATA - saves updated user data back into the JSON file.
 function writeData(data) {
     ensureDataFile();
+
+    if (fs.existsSync(dataPath)) {
+        fs.copyFileSync(dataPath, `${dataPath}.bak`);
+    }
+
     fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+}
+
+// DATA PATH GETTER - helps startup logs show where owed coins are saved.
+function getDataPath() {
+    return dataPath;
 }
 
 // USER DATA - returns an existing user record or creates a new one.
@@ -50,6 +68,14 @@ function getUser(data, userId) {
             coins: 0,
             cases: {},
         };
+    }
+
+    if (typeof data.users[userId].coins !== 'number') {
+        data.users[userId].coins = 0;
+    }
+
+    if (!data.users[userId].cases) {
+        data.users[userId].cases = {};
     }
 
     return data.users[userId];
@@ -101,10 +127,45 @@ function addCoins(userId, amount) {
     return user.coins;
 }
 
+// REMOVE COINS - deducts coins from a user's balance without going below zero.
+function removeCoins(userId, amount) {
+    const data = readData();
+    const user = getUser(data, userId);
+
+    user.coins = Math.max(0, user.coins - amount);
+    writeData(data);
+
+    return user.coins;
+}
+
+// GET COINS - checks how many coins a user is owed.
+function getCoins(userId) {
+    const data = readData();
+    const user = getUser(data, userId);
+
+    return user.coins;
+}
+
+// CLEAR COINS - resets a user's owed coin balance after staff pay it.
+function clearCoins(userId) {
+    const data = readData();
+    const user = getUser(data, userId);
+    const previousCoins = user.coins;
+
+    user.coins = 0;
+    writeData(data);
+
+    return previousCoins;
+}
+
 // EXPORTS - shares storage functions with command files.
 module.exports = {
     addCase,
     removeCase,
     getCaseAmount,
     addCoins,
+    removeCoins,
+    getCoins,
+    clearCoins,
+    getDataPath,
 };

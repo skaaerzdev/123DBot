@@ -1,6 +1,7 @@
 // IMPORTS - loads Discord tools and case config.
 const { EmbedBuilder, PermissionsBitField, SlashCommandBuilder } = require('discord.js');
 const { getCase, getCaseChoices } = require('../caseConfig');
+const { addCoins } = require('../caseStore');
 
 // CASE RANDOMISER - picks one reward using chance values as weighted odds.
 function pickItem(items) {
@@ -23,6 +24,16 @@ function getTotalChance(items) {
 
 function formatChance(chance) {
     return Number.isInteger(chance) ? `${chance}%` : `${chance.toFixed(2).replace(/\.?0+$/, '')}%`;
+}
+
+function parseCoinAmount(name) {
+    const match = typeof name === 'string' ? name.match(/([\d,]+)\s*Coins/i) : null;
+
+    return match ? Number(match[1].replace(/,/g, '')) : 0;
+}
+
+function formatCoins(amount) {
+    return amount.toLocaleString('en-US');
 }
 
 function getMentionedRoleId(value) {
@@ -145,7 +156,7 @@ module.exports = {
 
         // INVALID CASE - stops if the requested case does not exist.
         if (!caseInfo) {
-            const message = 'That case does not exist. Try: \n `!roll case1`, `!roll case2`, `!roll case4`, `!roll case5`, `!roll case6`, `!roll case7`';
+            const message = 'That case does not exist. Try: \n `!roll case1`, `!roll case2`, `!roll case3`, `!roll case4`, `!roll case5`, `!roll case6`, `!roll case7`, `!roll case8`';
             return isInteraction
                 ? interactionOrMessage.reply({ content: message, ephemeral: true })
                 : interactionOrMessage.reply(message);
@@ -200,10 +211,21 @@ module.exports = {
         const actualChance = item.chance / getTotalChance(caseInfo.items) * 100;
         const chanceText = formatChance(actualChance);
 
-        // COIN REWARD - shows the result without saving coins to the user's balance.
+        // COIN REWARD - stores owed coins so staff can pay them through UnbelievaBoat later.
         if (item.type === 'coins') {
+            const coinAmount = parseCoinAmount(item.name);
             const embed = createRollEmbed(caseInfo, item, item.name, chanceText);
-            embed.setFooter({ text: 'Make a ticket to claim the coins you have won.' });
+
+            if (coinAmount > 0) {
+                const owedCoins = addCoins(member.id, coinAmount);
+                embed.addFields({
+                    name: 'Owed Coins',
+                    value: `Added **${formatCoins(coinAmount)}** coins to your owed balance.\nTotal owed: **${formatCoins(owedCoins)}** coins.\nUse \`!coins\` to check this later.`,
+                    inline: false,
+                });
+            } else {
+                embed.setFooter({ text: 'No coins were added to your owed balance.' });
+            }
 
             return sendResult(interactionOrMessage, isInteraction, embed);
         }

@@ -4,6 +4,7 @@ require('dotenv').config();
 // NODE IMPORTS - loads local file and path helpers.
 const fs = require('fs');
 const path = require('path');
+const { getDataPath } = require('./caseStore');
 
 // APP PATHS - anchors folders to this file so Linux hosts do not depend on the launch directory.
 const ROOT_DIR = __dirname;
@@ -217,6 +218,7 @@ client.once(Events.ClientReady, async () => {
     console.log(`Bot Status set to: ${statusType}`);
     console.log(`Activity set to: ${activityType} ${activityName}`);
     console.log(`Listening for prefix commands: ${PREFIXES.join(', ')}`);
+    console.log(`Owed coin data path: ${getDataPath()}`);
     console.log(describeRestriction('User command access', ALLOWED_USER_IDS));
     console.log(describeRestriction('Role command access', ALLOWED_ROLE_IDS));
     console.log(describeRestriction('Command channels', ALLOWED_CHANNEL_IDS));
@@ -241,6 +243,7 @@ function parseIdSet(value) {
 const ALLOWED_USER_IDS = parseIdSet(process.env.ALLOWED_USER_IDS);
 const ALLOWED_ROLE_IDS = parseIdSet(process.env.ALLOWED_ROLE_IDS);
 const ALLOWED_CHANNEL_IDS = parseIdSet(process.env.ALLOWED_CHANNEL_IDS);
+const COINS_ALLOWED_CATEGORY_IDS = parseIdSet(process.env.COINS_ALLOWED_CATEGORY_IDS || '1212047435816378378');
 
 // ROLE ACCESS CHECK - lets configured users through, or members with a configured role.
 function canUseCommand(memberOrUser) {
@@ -262,9 +265,21 @@ function canUseCommand(memberOrUser) {
     return Array.isArray(roles) && roles.some(roleId => ALLOWED_ROLE_IDS.has(roleId));
 }
 
+function getChannelParentId(channelId, channel) {
+    return channel?.parentId || client.channels.cache.get(channelId)?.parentId || null;
+}
+
 // CHANNEL ACCESS CHECK - limits commands to configured channels when ALLOWED_CHANNEL_IDS is set.
-function canUseChannel(channelId) {
-    return ALLOWED_CHANNEL_IDS.size === 0 || ALLOWED_CHANNEL_IDS.has(channelId);
+function canUseChannel(channelId, commandName, channel) {
+    if (ALLOWED_CHANNEL_IDS.size === 0 || ALLOWED_CHANNEL_IDS.has(channelId)) {
+        return true;
+    }
+
+    if (commandName === 'coins' || commandName === 'clearcoins') {
+        return COINS_ALLOWED_CATEGORY_IDS.has(getChannelParentId(channelId, channel));
+    }
+
+    return false;
 }
 
 // ENV DISPLAY - keeps startup logs readable for temporary restrictions.
@@ -279,8 +294,8 @@ const ACCESS_DENIED_MESSAGE = 'You are not allowed to use bot commands right now
 const CHANNEL_DENIED_MESSAGE = 'Bot commands are not enabled in this channel right now.';
 
 // ACCESS VALIDATION - checks both temporary role/user access and channel access.
-function getAccessDeniedMessage(memberOrUser, channelId) {
-    if (!canUseChannel(channelId)) {
+function getAccessDeniedMessage(memberOrUser, channelId, commandName, channel) {
+    if (!canUseChannel(channelId, commandName, channel)) {
         return CHANNEL_DENIED_MESSAGE;
     }
 
@@ -303,7 +318,12 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     // TEMP ACCESS CHECK - blocks slash commands outside configured users, roles, or channels.
-    const accessDeniedMessage = getAccessDeniedMessage(interaction.member || interaction.user, interaction.channelId);
+    const accessDeniedMessage = getAccessDeniedMessage(
+        interaction.member || interaction.user,
+        interaction.channelId,
+        interaction.commandName,
+        interaction.channel,
+    );
 
     if (accessDeniedMessage) {
         return interaction.reply({ content: accessDeniedMessage, ephemeral: true });
@@ -346,7 +366,12 @@ client.on(Events.MessageCreate, async message => {
     }
 
     // TEMP ACCESS CHECK - blocks prefix commands outside configured users, roles, or channels.
-    const accessDeniedMessage = getAccessDeniedMessage(message.member || message.author, message.channelId);
+    const accessDeniedMessage = getAccessDeniedMessage(
+        message.member || message.author,
+        message.channelId,
+        commandName,
+        message.channel,
+    );
 
     if (accessDeniedMessage) {
         return message.reply({ content: accessDeniedMessage });
