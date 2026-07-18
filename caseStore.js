@@ -127,12 +127,12 @@ function addCoins(userId, amount) {
     return user.coins;
 }
 
-// REMOVE COINS - deducts coins from a user's balance without going below zero.
+// REMOVE COINS - deducts coins from a user's balance, allowing it to go negative.
 function removeCoins(userId, amount) {
     const data = readData();
     const user = getUser(data, userId);
 
-    user.coins = Math.max(0, user.coins - amount);
+    user.coins -= amount;
     writeData(data);
 
     return user.coins;
