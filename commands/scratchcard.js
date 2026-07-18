@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { addCoins } = require('../caseStore');
 
-const COOLDOWN_MS = 120 * 120 * 1000;
+const COOLDOWN_MS = 10 * 60 * 1000;
 const cooldowns = new Map();
 
 const SYMBOLS = ['7', '$', '*', '#', '+'];
