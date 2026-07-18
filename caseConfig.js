@@ -162,7 +162,7 @@ function getCase(caseName) {
     return cases[normalizedName];
 }
 
-// GET CASE CHOICES - returns available case choices for slash command menus.
+// GET CASE CHOICES - returns available case choices for slash command menus. this too
 function getCaseChoices() {
     return Object.values(cases).map(caseInfo => ({
         name: caseInfo.displayName,
