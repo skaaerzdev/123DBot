@@ -13,9 +13,9 @@ const BOARD_SIZE = 16;
 const ROW_SIZE = 4;
 const MINE_COUNT = 4;
 const MAX_SAFE_PICKS = 7;
-const COOLDOWN_MS = 20 * 60 * 1000;
-const GAME_MS = 2 * 60 * 1000;
-const PAYOUTS = [0, 5000, 10000, 15000, 20000, 35000, 40000, 50000];
+const COOLDOWN_MS = 30 * 60 * 1000;
+const GAME_MS = 1 * 60 * 1000;
+const PAYOUTS = [0, 5000, 10000, 15000, 25000, 50000, 75000, 100000];
 const cooldowns = new Map();
 
 function formatCoins(amount) {

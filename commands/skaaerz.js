@@ -4,11 +4,11 @@ const { getBossCooldown, setBossCooldown, addCoins } = require('../caseStore');
 const BOSS_NAME = 'Skaaerz';
 const BOSS_MAX_HEALTH = 70;
 const PLAYER_MAX_HEALTH = 100;
-const TOTAL_ROUNDS = 3;
+const TOTAL_ROUNDS = 5;
 const ROUND_DAMAGE = 20;
 const PLAYER_DAMAGE = 25;
-const REWARD_COINS = 10000;
-const COOLDOWN_MS = 2 * 60 * 60 * 1000;
+const REWARD_COINS = 50000;
+const COOLDOWN_MS = 30 * 60 * 60 * 1000;
 const ACTIVE_GAMES = new Map();
 
 function formatCoins(amount) {
