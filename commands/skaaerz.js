@@ -7,7 +7,7 @@ const PLAYER_MAX_HEALTH = 100;
 const TOTAL_ROUNDS = 3;
 const ROUND_DAMAGE = 30;
 const PLAYER_DAMAGE = 20;
-const REWARD_COINS = 25000;
+const REWARD_COINS = 10000;
 const COOLDOWN_MS = 2 * 60 * 60 * 1000;
 const ACTIVE_GAMES = new Map();
 

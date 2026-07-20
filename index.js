@@ -4,7 +4,8 @@ require('dotenv').config();
 // NODE IMPORTS - loads local file and path helpers.
 const fs = require('fs');
 const path = require('path');
-const { getDataPath, getDropState, setDropState, addCoins } = require('./caseStore');
+const { getDataPath } = require('./caseStore');
+const { startDropScheduler, handleClaimButton } = require('./commands/drops');
 
 // APP PATHS - anchors folders to this file so Linux hosts do not depend on the launch directory.
 const ROOT_DIR = __dirname;
@@ -290,104 +291,6 @@ function describeRestriction(name, values) {
         : `${name} is open.`;
 }
 
-const DROP_CHANNEL_ID = '1402858046325264436';
-
-async function getEconomyChannel() {
-    const cachedChannel = client.channels.cache.get(DROP_CHANNEL_ID);
-
-    if (cachedChannel && cachedChannel.isTextBased?.()) {
-        return cachedChannel;
-    }
-
-    try {
-        const fetchedChannel = await client.channels.fetch(DROP_CHANNEL_ID);
-        return fetchedChannel && fetchedChannel.isTextBased?.() ? fetchedChannel : null;
-    } catch (error) {
-        return null;
-    }
-}
-
-async function sendRandomDrop() {
-    const channel = await getEconomyChannel();
-
-    if (!channel) {
-        return;
-    }
-
-    const now = Date.now();
-    const state = getDropState();
-    const nextDropAt = state.nextDropAt || now + 30 * 60 * 1000;
-    const nextBigDropAt = state.nextBigDropAt || now + 2 * 60 * 60 * 1000;
-
-    let isBigDrop = false;
-
-    if (now >= nextBigDropAt) {
-        isBigDrop = true;
-    } else if (now < nextDropAt) {
-        return;
-    }
-
-    const amount = isBigDrop
-        ? Math.floor(Math.random() * 50000) + 1
-        : Math.floor(Math.random() * 10000) + 1;
-
-    const updatedState = {
-        nextDropAt: now + 30 * 60 * 1000,
-        nextBigDropAt: isBigDrop ? now + 2 * 60 * 60 * 1000 : nextBigDropAt,
-    };
-
-    setDropState(updatedState);
-
-    const dropMessages = [
-        'Skaaerz dropped his money',
-        'A shady trader dropped his money',
-        'A lucky goblin dropped a pile of coins',
-        'The boss dropped a bag of cash',
-    ];
-    const dropMessage = dropMessages[Math.floor(Math.random() * dropMessages.length)];
-
-    try {
-        await channel.send({
-            content: `@everyone ${dropMessage}. Be first to claim **${amount.toLocaleString('en-US')}** coins!`,
-            components: [
-                {
-                    type: 1,
-                    components: [
-                        {
-                            type: 2,
-                            custom_id: `claim:${Date.now()}:${amount}`,
-                            style: 3,
-                            label: `Claim ${amount.toLocaleString('en-US')} coins`,
-                        },
-                    ],
-                },
-            ],
-        });
-    } catch (error) {
-        console.error('Failed to send random drop:', error);
-    }
-}
-
-function startDropScheduler() {
-    const state = getDropState();
-
-    if (!state.nextDropAt) {
-        state.nextDropAt = Date.now() + 30 * 60 * 1000;
-    }
-
-    if (!state.nextBigDropAt) {
-        state.nextBigDropAt = Date.now() + 2 * 60 * 60 * 1000;
-    }
-
-    setDropState(state);
-
-    setInterval(() => {
-        sendRandomDrop().catch(error => {
-            console.error('Random drop scheduler error:', error);
-        });
-    }, 60 * 1000);
-}
-
 // ACCESS DENIED MESSAGES - shared by slash and prefix commands.
 const ACCESS_DENIED_MESSAGE = 'You are not allowed to use bot commands right now.';
 const CHANNEL_DENIED_MESSAGE = 'Bot commands are not enabled in this channel right now.';
@@ -405,25 +308,8 @@ function getAccessDeniedMessage(memberOrUser, channelId, commandName, channel) {
     return null;
 }
 
-const claimedDropIds = new Set();
-
 client.on(Events.InteractionCreate, async interaction => {
-    if (interaction.isButton() && interaction.customId.startsWith('claim:')) {
-        const parts = interaction.customId.split(':');
-        const dropId = parts[1];
-        const amount = Number(parts[2] || 0);
-
-        if (claimedDropIds.has(dropId)) {
-            return interaction.reply({ content: 'This drop has already been claimed.', ephemeral: true });
-        }
-
-        claimedDropIds.add(dropId);
-        addCoins(interaction.user.id, amount);
-
-        await interaction.update({
-            content: `${interaction.user} claimed the drop and won **${amount.toLocaleString('en-US')}** coins!`,
-            components: [],
-        });
+    if (await handleClaimButton(interaction)) {
         return;
     }
 

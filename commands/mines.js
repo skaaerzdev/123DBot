@@ -15,7 +15,7 @@ const MINE_COUNT = 4;
 const MAX_SAFE_PICKS = 7;
 const COOLDOWN_MS = 20 * 60 * 1000;
 const GAME_MS = 2 * 60 * 1000;
-const PAYOUTS = [0, 5000, 10000, 20000, 35000, 55000, 80000, 100000];
+const PAYOUTS = [0, 5000, 10000, 15000, 20000, 35000, 40000, 50000];
 const cooldowns = new Map();
 
 function formatCoins(amount) {
