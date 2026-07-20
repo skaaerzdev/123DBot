@@ -25,6 +25,49 @@ function createDefaultData() {
     };
 }
 
+function normalizeData(data) {
+    const normalized = data && typeof data === 'object' ? data : {};
+
+    if (!normalized.users || typeof normalized.users !== 'object') {
+        normalized.users = {};
+    }
+
+    if (!normalized.bossCooldowns || typeof normalized.bossCooldowns !== 'object') {
+        normalized.bossCooldowns = {};
+    }
+
+    if (!normalized.drops || typeof normalized.drops !== 'object') {
+        normalized.drops = { nextDropAt: 0, nextBigDropAt: 0 };
+    }
+
+    if (typeof normalized.drops.nextDropAt !== 'number') {
+        normalized.drops.nextDropAt = 0;
+    }
+
+    if (typeof normalized.drops.nextBigDropAt !== 'number') {
+        normalized.drops.nextBigDropAt = 0;
+    }
+
+    Object.keys(normalized.users).forEach(userId => {
+        const user = normalized.users[userId];
+
+        if (!user || typeof user !== 'object') {
+            normalized.users[userId] = { coins: 0, cases: {} };
+            return;
+        }
+
+        if (typeof user.coins !== 'number') {
+            user.coins = 0;
+        }
+
+        if (!user.cases || typeof user.cases !== 'object') {
+            user.cases = {};
+        }
+    });
+
+    return normalized;
+}
+
 // DATA FILE SETUP - creates the economy folder and save file if they do not exist.
 function ensureDataFile() {
     const dataDirectory = path.dirname(dataPath);
@@ -43,7 +86,7 @@ function readData() {
     ensureDataFile();
 
     try {
-        return JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+        return normalizeData(JSON.parse(fs.readFileSync(dataPath, 'utf8')));
     } catch (error) {
         console.error('Failed to read case economy data:', error);
         return createDefaultData();
@@ -54,11 +97,13 @@ function readData() {
 function writeData(data) {
     ensureDataFile();
 
+    const normalizedData = normalizeData(data);
+
     if (fs.existsSync(dataPath)) {
         fs.copyFileSync(dataPath, `${dataPath}.bak`);
     }
 
-    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+    fs.writeFileSync(dataPath, JSON.stringify(normalizedData, null, 2));
 }
 
 // DATA PATH GETTER - helps startup logs show where owed coins are saved.
@@ -88,11 +133,12 @@ function getUser(data, userId) {
 
 function getBossCooldown(userId) {
     const data = readData();
-    return data.bossCooldowns[userId] || 0;
+    return data.bossCooldowns?.[userId] || 0;
 }
 
 function setBossCooldown(userId, cooldownAt) {
     const data = readData();
+    data.bossCooldowns = data.bossCooldowns || {};
     data.bossCooldowns[userId] = cooldownAt;
     writeData(data);
     return cooldownAt;
@@ -105,7 +151,7 @@ function getDropState() {
 
 function setDropState(dropState) {
     const data = readData();
-    data.drops = dropState;
+    data.drops = dropState || { nextDropAt: 0, nextBigDropAt: 0 };
     writeData(data);
     return data.drops;
 }
