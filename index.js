@@ -290,18 +290,25 @@ function describeRestriction(name, values) {
         : `${name} is open.`;
 }
 
-function getEconomyChannel() {
-    const guild = client.guilds.cache.first();
+const DROP_CHANNEL_ID = '1402858046325264436';
 
-    if (!guild) {
-        return null;
+async function getEconomyChannel() {
+    const cachedChannel = client.channels.cache.get(DROP_CHANNEL_ID);
+
+    if (cachedChannel && cachedChannel.isTextBased?.()) {
+        return cachedChannel;
     }
 
-    return guild.channels.cache.find(channel => channel?.isTextBased?.() && channel?.viewable) || null;
+    try {
+        const fetchedChannel = await client.channels.fetch(DROP_CHANNEL_ID);
+        return fetchedChannel && fetchedChannel.isTextBased?.() ? fetchedChannel : null;
+    } catch (error) {
+        return null;
+    }
 }
 
 async function sendRandomDrop() {
-    const channel = getEconomyChannel();
+    const channel = await getEconomyChannel();
 
     if (!channel) {
         return;
