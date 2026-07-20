@@ -17,6 +17,11 @@ const dataPath = resolveDataPath();
 function createDefaultData() {
     return {
         users: {},
+        bossCooldowns: {},
+        drops: {
+            nextDropAt: 0,
+            nextBigDropAt: 0,
+        },
     };
 }
 
@@ -79,6 +84,30 @@ function getUser(data, userId) {
     }
 
     return data.users[userId];
+}
+
+function getBossCooldown(userId) {
+    const data = readData();
+    return data.bossCooldowns[userId] || 0;
+}
+
+function setBossCooldown(userId, cooldownAt) {
+    const data = readData();
+    data.bossCooldowns[userId] = cooldownAt;
+    writeData(data);
+    return cooldownAt;
+}
+
+function getDropState() {
+    const data = readData();
+    return data.drops || { nextDropAt: 0, nextBigDropAt: 0 };
+}
+
+function setDropState(dropState) {
+    const data = readData();
+    data.drops = dropState;
+    writeData(data);
+    return data.drops;
 }
 
 // ADD CASE - adds one owned case to a user. testing this
@@ -168,4 +197,8 @@ module.exports = {
     getCoins,
     clearCoins,
     getDataPath,
+    getBossCooldown,
+    setBossCooldown,
+    getDropState,
+    setDropState,
 };
