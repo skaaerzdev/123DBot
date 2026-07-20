@@ -2,11 +2,11 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const { getBossCooldown, setBossCooldown, addCoins } = require('../caseStore');
 
 const BOSS_NAME = 'Skaaerz';
-const BOSS_MAX_HEALTH = 60;
+const BOSS_MAX_HEALTH = 70;
 const PLAYER_MAX_HEALTH = 100;
 const TOTAL_ROUNDS = 3;
-const ROUND_DAMAGE = 30;
-const PLAYER_DAMAGE = 20;
+const ROUND_DAMAGE = 20;
+const PLAYER_DAMAGE = 25;
 const REWARD_COINS = 10000;
 const COOLDOWN_MS = 2 * 60 * 60 * 1000;
 const ACTIVE_GAMES = new Map();
@@ -32,16 +32,37 @@ function formatTime(ms) {
     return `${seconds}s`;
 }
 
-function createHealthBar(currentHealth, maxHealth, length = 20) {
-    const filled = Math.max(0, Math.min(length, Math.round((currentHealth / maxHealth) * length)));
-    const empty = length - filled;
+function createHealthBar(currentHealth, maxHealth, segmentSize = 10) {
+    const segments = Math.max(1, Math.ceil(maxHealth / segmentSize));
+    const filledSegments = Math.max(0, Math.min(segments, Math.ceil(Math.max(0, currentHealth) / segmentSize)));
+    const emptySegments = segments - filledSegments;
 
-    return `[${'#'.repeat(filled)}${'-'.repeat(empty)}]`;
+    return `${'🟩'.repeat(filledSegments)}${'⬜'.repeat(emptySegments)}`;
 }
 
-function getBossAction() {
+function getActionName(action) {
+    return action === 'hit' ? 'Hit' : action === 'block' ? 'Block' : 'Dodge';
+}
+
+function getCounterAction(action) {
+    return action === 'hit' ? 'block' : action === 'block' ? 'dodge' : 'hit';
+}
+
+function getBossAction(previousPlayerAction) {
     const actions = ['hit', 'block', 'dodge'];
-    return actions[Math.floor(Math.random() * actions.length)];
+
+    if (!previousPlayerAction) {
+        return Math.random() < 0.5 ? 'block' : actions[Math.floor(Math.random() * actions.length)];
+    }
+
+    const counterAction = getCounterAction(previousPlayerAction);
+
+    if (Math.random() < 0.6) {
+        return counterAction;
+    }
+
+    const fallbackActions = actions.filter(action => action !== counterAction);
+    return fallbackActions[Math.floor(Math.random() * fallbackActions.length)];
 }
 
 function getRoundResult(playerAction, bossAction) {
@@ -49,15 +70,28 @@ function getRoundResult(playerAction, bossAction) {
         return 'draw';
     }
 
-    if (
-        (playerAction === 'hit' && (bossAction === 'block' || bossAction === 'dodge')) ||
-        (playerAction === 'block' && (bossAction === 'hit' || bossAction === 'dodge')) ||
-        (playerAction === 'dodge' && (bossAction === 'hit' || bossAction === 'block'))
-    ) {
-        return 'win';
+    const winMap = {
+        hit: 'dodge',
+        block: 'hit',
+        dodge: 'block',
+    };
+
+    return winMap[playerAction] === bossAction ? 'win' : 'lose';
+}
+
+function getOutcomeText(playerAction, bossAction, result) {
+    const playerName = getActionName(playerAction);
+    const bossName = getActionName(bossAction);
+
+    if (result === 'win') {
+        return `${playerName} beats ${bossName.toLowerCase()}.`;
     }
 
-    return 'lose';
+    if (result === 'lose') {
+        return `${bossName} beats ${playerName.toLowerCase()}.`;
+    }
+
+    return `Both chose ${playerName.toLowerCase()}.`;
 }
 
 function buildActionRow() {
@@ -112,6 +146,7 @@ function buildEmbed(game, statusText) {
             { name: 'Your Health', value: `${playerHealthBar} ${game.userHealth}/${PLAYER_MAX_HEALTH}`, inline: false },
             { name: 'Round', value: `${game.round}/${TOTAL_ROUNDS}`, inline: true },
             { name: 'Reward', value: `${formatCoins(REWARD_COINS)} coins`, inline: true },
+            { name: 'Rules', value: 'Hit beats Dodge • Block beats Hit • Dodge beats Block', inline: false },
         );
 }
 
@@ -152,6 +187,7 @@ module.exports = {
             bossHealth: BOSS_MAX_HEALTH,
             userHealth: PLAYER_MAX_HEALTH,
             round: 1,
+            lastPlayerAction: null,
             completed: false,
             reward: REWARD_COINS,
         };
@@ -177,7 +213,7 @@ module.exports = {
             }
 
             const [, action] = buttonInteraction.customId.split(':');
-            const bossAction = getBossAction();
+            const bossAction = getBossAction(game.lastPlayerAction);
             const result = getRoundResult(action, bossAction);
 
             if (result === 'win') {
@@ -186,9 +222,10 @@ module.exports = {
                 game.userHealth = Math.max(0, game.userHealth - PLAYER_DAMAGE);
             }
 
+            game.lastPlayerAction = action;
             game.round += 1;
 
-            const statusText = `You chose **${action}** and ${BOSS_NAME} chose **${bossAction}**. ${result === 'win' ? 'You landed a hit.' : result === 'lose' ? 'You got hit.' : 'It was a draw.'}`;
+            const statusText = `You chose **${getActionName(action)}** and ${BOSS_NAME} chose **${getActionName(bossAction)}**. ${getOutcomeText(action, bossAction, result)}`;
 
             if (game.bossHealth <= 0) {
                 game.completed = true;
