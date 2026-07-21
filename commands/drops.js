@@ -27,7 +27,7 @@ async function sendRandomDrop(client) {
 
     const now = Date.now();
     const state = getDropState();
-    const nextDropAt = state.nextDropAt || now + 30 * 60 * 1000;
+    const nextDropAt = state.nextDropAt || now + 10 * 60 * 1000;
     const nextBigDropAt = state.nextBigDropAt || now + 2 * 60 * 60 * 1000;
 
     let isBigDrop = false;
