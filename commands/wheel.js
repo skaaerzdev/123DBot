@@ -10,8 +10,8 @@ const WHEEL_PRIZES = [
     { label: '1,000 Coins', amount: 1000, weight: 24 },
     { label: '2,000 Coins', amount: 2000, weight: 14 },
     { label: '5,000 Coins', amount: 5000, weight: 7 },
-    { label: '7,000 Coins', amount: 10000, weight: 4 },
-    { label: '10,000 Coins', amount: 25000, weight: 1 },
+    { label: '10,000 Coins', amount: 10000, weight: 4 },
+    { label: '25,000 Coins', amount: 25000, weight: 1 },
 ];
 
 function formatCoins(amount) {
