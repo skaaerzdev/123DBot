@@ -220,7 +220,7 @@ client.once(Events.ClientReady, async () => {
     console.log(`Activity set to: ${activityType} ${activityName}`);
     console.log(`Listening for prefix commands: ${PREFIXES.join(', ')}`);
     console.log(`Owed coin data path: ${getDataPath()}`);
-    startDropScheduler();
+    startDropScheduler(client);
     console.log(describeRestriction('User command access', ALLOWED_USER_IDS));
     console.log(describeRestriction('Role command access', ALLOWED_ROLE_IDS));
     console.log(describeRestriction('Command channels', ALLOWED_CHANNEL_IDS));
