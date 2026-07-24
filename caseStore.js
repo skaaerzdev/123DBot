@@ -235,6 +235,7 @@ function clearCoins(userId) {
 
 // EXPORTS - shares storage functions with command files.
 module.exports = {
+    readData,
     addCase,
     removeCase,
     getCaseAmount,
