@@ -35,10 +35,7 @@ function createLeaderboardEmbed(entries, page, totalPages, guild) {
         ? 'No users have any coins yet.'
         : pageEntries.map((entry, index) => {
             const rank = start + index + 1;
-            const member = guild?.members?.cache?.get(entry.userId);
-            const displayName = member?.user?.username || member?.displayName || entry.userId;
-
-            return `**${rank}.** ${displayName} — **${formatCoins(entry.coins)}** coins`;
+            return `**${rank}.** <@${entry.userId}> — **${formatCoins(entry.coins)}** coins`;
         }).join('\n');
 
     return new EmbedBuilder()

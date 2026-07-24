@@ -29,9 +29,8 @@ function getTrackedRoleIds() {
     return roleIds;
 }
 
-// BUILD LEADERBOARD - counts how many tracked roles each guild member holds, sorted descending.
-function buildLeaderboard(guild, trackedRoleIds) {
-    const members = guild.members.cache.filter(m => !m.user.bot);
+
+function buildLeaderboard(members, trackedRoleIds) {
     const entries = [];
 
     for (const member of members.values()) {
@@ -123,8 +122,9 @@ module.exports = {
                 : interactionOrMessage.reply(message);
         }
 
-        // BUILD LEADERBOARD DATA - sort members by their tracked role count.
-        const entries = buildLeaderboard(guild, trackedRoleIds);
+        // BUILD LEADERBOARD DATA - fetch all members from Discord API, then sort by tracked role count.
+        const allMembers = await guild.members.fetch();
+        const entries = buildLeaderboard(allMembers, trackedRoleIds);
 
         if (entries.length === 0) {
             const message = 'No members have earned any case roles yet.';

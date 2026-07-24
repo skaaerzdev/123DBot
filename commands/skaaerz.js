@@ -57,8 +57,8 @@ function getBossAction(previousPlayerAction) {
 
     const counterAction = getCounterAction(previousPlayerAction);
 
-    // Boss chance of countering player actio
-    if (Math.random() < 0.5) {
+    // Boss chance of countering player action
+    if (Math.random() < 0.6) {
         return counterAction;
     }
 
