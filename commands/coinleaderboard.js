@@ -1,75 +1,51 @@
-// IMPORTS - loads Discord embed, button tools and case configurations.
+// IMPORTS - loads Discord embed, button tools and coin storage.
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { cases } = require('../caseConfig');
+const { readData } = require('../caseStore');
 
-// EXCLUDED ROLES - these role names are skipped when counting case roles.
-const EXCLUDED_ROLE_NAMES = ['Big Dawg', 'Professional Gambler'];
-
-// COLLECT TRACKED ROLES - gathers all case reward role IDs (type: 'role'), excluding certain roles.
-function getTrackedRoleIds() {
-    const roleIds = new Set();
-
-    for (const caseKey of Object.keys(cases)) {
-        const caseInfo = cases[caseKey];
-
-        if (!caseInfo || !Array.isArray(caseInfo.items)) continue;
-
-        for (const item of caseInfo.items) {
-            if (item.type !== 'role') continue;
-            if (EXCLUDED_ROLE_NAMES.includes(item.roleName)) continue;
-
-            const roleId = item.roleId || item.roleID || null;
-
-            if (roleId) {
-                roleIds.add(roleId);
-            }
-        }
-    }
-
-    return roleIds;
+function formatCoins(amount) {
+    return amount.toLocaleString('en-US');
 }
 
-// BUILD LEADERBOARD - counts how many tracked roles each guild member holds, sorted descending.
-function buildLeaderboard(guild, trackedRoleIds) {
-    const members = guild.members.cache.filter(m => !m.user.bot);
+// BUILD LEADERBOARD - reads all users and sorts by coin balance descending.
+function buildLeaderboard() {
+    const data = readData();
     const entries = [];
 
-    for (const member of members.values()) {
-        let count = 0;
+    if (!data || !data.users) {
+        return entries;
+    }
 
-        for (const roleId of trackedRoleIds) {
-            if (member.roles.cache.has(roleId)) {
-                count++;
-            }
-        }
-
-        if (count > 0) {
-            entries.push({ userId: member.id, displayName: member.user.displayName, count });
+    for (const [userId, userData] of Object.entries(data.users)) {
+        if (userData && typeof userData.coins === 'number' && userData.coins > 0) {
+            entries.push({ userId, coins: userData.coins });
         }
     }
 
-    entries.sort((a, b) => b.count - a.count || a.displayName.localeCompare(b.displayName));
+    entries.sort((a, b) => b.coins - a.coins || a.userId.localeCompare(b.userId));
 
     return entries;
 }
 
-// CREATE EMBED - renders one page of the leaderboard.
-function createLeaderboardEmbed(entries, page, totalPages) {
+// CREATE EMBED - renders one page of the coin leaderboard.
+function createLeaderboardEmbed(entries, page, totalPages, guild) {
     const start = (page - 1) * 10;
     const pageEntries = entries.slice(start, start + 10);
 
     const description = pageEntries.length === 0
-        ? 'No users have earned case roles yet.'
+        ? 'No users have any coins yet.'
         : pageEntries.map((entry, index) => {
             const rank = start + index + 1;
-            return `**${rank}.** <@${entry.userId}> — ${entry.count} role${entry.count !== 1 ? 's' : ''}`;
+            const member = guild?.members?.cache?.get(entry.userId);
+            const displayName = member?.user?.username || member?.displayName || entry.userId;
+
+            return `**${rank}.** ${displayName} — **${formatCoins(entry.coins)}** coins`;
         }).join('\n');
 
     return new EmbedBuilder()
-        .setTitle('🏆 Case Role Leaderboard')
+        .setTitle('💰 Coin Leaderboard')
         .setColor('#f1c40f')
         .setDescription(description)
-        .setFooter({ text: `Page ${page} / ${totalPages} • Showing top ${entries.length} members` });
+        .setFooter({ text: `Page ${page} / ${totalPages} • Top ${entries.length} users` });
 }
 
 // CREATE PAGINATION ROW - builds Prev / Next buttons for the current page.
@@ -93,41 +69,24 @@ function createPaginationRow(page, totalPages) {
     );
 }
 
-// ROLE LEADERBOARD COMMAND - shows who has the most case roles (excluding Big Dawg and Professional Gambler).
+// COIN LEADERBOARD COMMAND - shows who has the most owed coins.
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('rolelb')
-        .setDescription('Shows the case role leaderboard (excludes Big Dawg & Professional Gambler)'),
+        .setName('coinslb')
+        .setDescription('Shows the coin leaderboard (top users by owed coins)'),
 
     async execute(interactionOrMessage, args = []) {
         const isInteraction = typeof interactionOrMessage.isChatInputCommand === 'function'
             && interactionOrMessage.isChatInputCommand();
 
-        // GUILD CHECK - needed for member role lookups.
-        const guild = interactionOrMessage.guild;
+        // GUILD CHECK - needed for member display name lookups (optional).
+        const guild = interactionOrMessage.guild || null;
 
-        if (!guild) {
-            const message = 'This command can only be used in a server.';
-            return isInteraction
-                ? interactionOrMessage.reply({ content: message, ephemeral: true })
-                : interactionOrMessage.reply(message);
-        }
-
-        // COLLECT TRACKED ROLE IDS - get all case reward role IDs excluding specified roles.
-        const trackedRoleIds = getTrackedRoleIds();
-
-        if (trackedRoleIds.size === 0) {
-            const message = 'No case reward roles found in the configuration.';
-            return isInteraction
-                ? interactionOrMessage.reply({ content: message, ephemeral: true })
-                : interactionOrMessage.reply(message);
-        }
-
-        // BUILD LEADERBOARD DATA - sort members by their tracked role count.
-        const entries = buildLeaderboard(guild, trackedRoleIds);
+        // BUILD LEADERBOARD DATA - sort users by coin balance descending.
+        const entries = buildLeaderboard();
 
         if (entries.length === 0) {
-            const message = 'No members have earned any case roles yet.';
+            const message = 'No users have any coins yet.';
             return isInteraction
                 ? interactionOrMessage.reply({ content: message, ephemeral: true })
                 : interactionOrMessage.reply(message);
@@ -138,7 +97,7 @@ module.exports = {
         let currentPage = 1;
 
         // BUILD INITIAL EMBED AND BUTTONS.
-        const embed = createLeaderboardEmbed(entries, currentPage, totalPages);
+        const embed = createLeaderboardEmbed(entries, currentPage, totalPages, guild);
         const row = createPaginationRow(currentPage, totalPages);
 
         // REPLY - send the embed with pagination buttons.
@@ -171,7 +130,7 @@ module.exports = {
             }
 
             // UPDATE EMBED - refresh the embed and buttons for the new page.
-            const newEmbed = createLeaderboardEmbed(entries, currentPage, totalPages);
+            const newEmbed = createLeaderboardEmbed(entries, currentPage, totalPages, guild);
             const newRow = createPaginationRow(currentPage, totalPages);
 
             await buttonInteraction.update({ embeds: [newEmbed], components: [newRow] });
