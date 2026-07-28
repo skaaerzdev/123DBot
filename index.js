@@ -70,7 +70,7 @@ function loadCommandFile(file) {
 }
 
 // SLASH COMMAND IMPORTS - loads Discord REST tools for command registration.
-const { REST, Routes } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
 // DEPLOY COMMANDS - sends all slash command definitions to Discord.
 const deployCommands = async commandCollection => {
@@ -135,7 +135,15 @@ const moderationFiles = getModerationFiles();
 // COMMAND LOADER - requires each command file and adds it to the command cache.
 for (const file of commandsFiles) {
     const filePath = path.join(COMMANDS_DIR, file);
-    const command = loadCommandFile(file);
+
+    let command;
+
+    try {
+        command = loadCommandFile(file);
+    } catch (loadError) {
+        console.error(`Failed to load command file ${filePath}:`, loadError.message);
+        continue;
+    }
 
     if ('data' in command && 'execute' in command) {
         const commandData = command.data.toJSON();
@@ -146,14 +154,18 @@ for (const file of commandsFiles) {
         // ALIAS REGISTRATION - registers alias commands for both prefix and slash usage.
         if (command.aliases && Array.isArray(command.aliases)) {
             for (const alias of command.aliases) {
-                const aliasCommand = {
-                    data: new SlashCommandBuilder()
-                        .setName(alias)
-                        .setDescription(commandData.description || command.data.description),
-                    execute: command.execute.bind(command),
-                };
-                client.commands.set(alias, aliasCommand);
-                console.log(`Loaded alias: ${alias} -> ${commandData.name}`);
+                try {
+                    const aliasCommand = {
+                        data: new SlashCommandBuilder()
+                            .setName(alias)
+                            .setDescription(commandData.description || command.data.description),
+                        execute: command.execute.bind(command),
+                    };
+                    client.commands.set(alias, aliasCommand);
+                    console.log(`Loaded alias: ${alias} -> ${commandData.name}`);
+                } catch (aliasError) {
+                    console.error(`Failed to register alias "${alias}" for ${commandData.name}:`, aliasError.message);
+                }
             }
         }
     } else {
