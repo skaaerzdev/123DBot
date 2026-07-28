@@ -142,6 +142,20 @@ for (const file of commandsFiles) {
         // COMMAND REGISTER - saves the command so slash and prefix handlers can run it.
         client.commands.set(commandData.name, command);
         console.log(`Loaded command: ${commandData.name}`);
+
+        // ALIAS REGISTRATION - registers alias commands for both prefix and slash usage.
+        if (command.aliases && Array.isArray(command.aliases)) {
+            for (const alias of command.aliases) {
+                const aliasCommand = {
+                    data: new SlashCommandBuilder()
+                        .setName(alias)
+                        .setDescription(commandData.description || command.data.description),
+                    execute: command.execute.bind(command),
+                };
+                client.commands.set(alias, aliasCommand);
+                console.log(`Loaded alias: ${alias} -> ${commandData.name}`);
+            }
+        }
     } else {
         console.log(`The command ${filePath} is missing a required "data" or "execute" property`);
     }

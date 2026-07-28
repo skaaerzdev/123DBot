@@ -56,6 +56,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('scratchcard')
         .setDescription('Scratch a card for owed coins'),
+        aliases: ['sc', 'scratch'],
 
     async execute(interactionOrMessage) {
         const isInteraction = typeof interactionOrMessage.isChatInputCommand === 'function'
