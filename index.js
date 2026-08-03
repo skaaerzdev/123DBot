@@ -94,7 +94,16 @@ const deployCommands = async commandCollection => {
 
         console.log(`Successfully reloaded commands`);
     } catch (error) {
-        console.error(`Error deploying command`, error);
+        if (error.code === 50001) {
+            console.error(
+                'Failed to deploy slash commands: Missing Access (50001).\n' +
+                'This means the bot lacks the "applications.commands" scope in your Discord server.\n' +
+                'Fix: Go to Discord Developer Portal > OAuth2 > URL Generator, check "applications.commands",\n' +
+                'regenerate the invite URL, and re-invite the bot to your server.'
+            );
+        } else {
+            console.error(`Error deploying command`, error);
+        }
     }
 };
 

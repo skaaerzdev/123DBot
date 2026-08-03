@@ -1,6 +1,6 @@
 const { addCoins, getDropState, setDropState } = require('../caseStore');
 
-const DROP_CHANNEL_ID = '1402858046325264436';
+const DROP_CHANNEL_ID = '0';
 const claimedDropIds = new Set();
 
 async function getEconomyChannel(client) {
